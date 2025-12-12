@@ -119,7 +119,18 @@ INDUK (VPN Network)
 ```
 ```yml
 Induk VPN        : 10.100.0.0/12
-Customer A       : 10.100.1.0/24
-Customer B       : 10.100.2.0/24
-Device Customer  : 10.100.1.10/32
+Customer A       : 10.100.1.0/24 # Customer hanya bisa generate di area ini  10.100.1.1 -  10.100.1.254 device
+Customer B       : 10.100.2.0/24  # Customer hanya bisa generate di area ini  10.100.2.1 -  10.100.2.254 device
+Device Customer  : 10.100.1.10/32 # IP realnya 10.100.1.10 => device yang customer punya
+
+# BIAR LEBIH PAHAM
+Induk VPN        : 10.100.0.0/12        # Pool IP VPN
+Customer A       : 10.100.1.0/24        # Area milik Customer A
+  - Device A1    : 10.100.1.10/32
+  - Device A2    : 10.100.1.11/32
+
+Customer B       : 10.100.2.0/24        # Area milik Customer B
+  - Device B1    : 10.100.2.10/32
 ```
+
+ 
