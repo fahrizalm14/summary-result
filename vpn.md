@@ -149,3 +149,165 @@ Kantor pusat, cabang, dan device remote berada di **satu jaringan privat**
     * wg-easy = **WireGuard VPN server lengkap + UI**
     * Setup sudah siap
     * Tinggal **connect client** 🚀
+   
+Siap. Ini **SUMMARY FINAL + CONTOH KONFIGURASI**, lengkap **server & client**, dan **DITAMBAHKAN poin “subnet di sisi server”**.
+Ini versi **pegangan teknis** (bisa kamu simpan).
+
+---
+
+# NOTE WIREGUARD CONFIGURATION
+
+## 🔹 1. **AllowedIPs**
+
+### 1️⃣ AllowedIPs di **CLIENT**
+
+**Fungsi:** routing lokal di device (split-tunnel)
+
+```ini
+# CLIENT
+[Peer]
+PublicKey = SERVER_PUBLIC_KEY
+Endpoint = vpn.nexwage.id:51820
+AllowedIPs = 10.200.0.0/16
+```
+
+**Makna:**
+
+* Traffic ke `10.200.x.x` → lewat VPN
+* Traffic lain → lewat network biasa
+* ❌ BUKAN subnet customer
+* ❌ BUKAN izin
+
+---
+
+### 2️⃣ AllowedIPs di **SERVER**
+
+**Fungsi:** auth + kepemilikan IP (ACL keras)
+
+```bash
+# SERVER (runtime)
+wg set wg0 peer PUBKEY_DEVICE_1 allowed-ips 10.100.10.2/32
+```
+
+**Makna:**
+
+* PublicKey ini **hanya sah** sebagai `10.100.10.2`
+* IP lain → DROP
+* ✅ Source of truth keamanan
+
+---
+
+## 🔹 2. **Peer di Config SERVER**
+
+* 1 peer = 1 device
+* Identitas = **PublicKey client**
+* Server **tidak tahu** subnet / customer / plan
+
+```ini
+# SERVER (konseptual)
+Peer: PUBKEY_DEVICE_1
+AllowedIPs = 10.100.10.2/32
+
+Peer: PUBKEY_DEVICE_2
+AllowedIPs = 10.100.10.3/32
+```
+
+---
+
+## 🔹 3. **Peer di Config CLIENT**
+
+* Peer = **server WireGuard**
+* Client **tidak punya info** peer client lain
+
+```ini
+# CLIENT
+[Interface]
+PrivateKey = PRIVATEKEY_DEVICE_1
+Address = 10.100.10.2/32
+
+[Peer]
+PublicKey = SERVER_PUBLIC_KEY
+Endpoint = vpn.nexwage.id:51820
+AllowedIPs = 10.200.0.0/16
+```
+
+---
+
+## 🔹 4. **Konfigurasi WireGuard TIDAK ADA SUBNET**
+
+🔥 **PENTING**
+
+* Tidak ada baris config WireGuard yang menyatakan:
+
+  * “ini subnet customer”
+  * “ini tenant”
+* WireGuard **hanya kenal IP per device (/32)**
+
+---
+
+## 🔹 5. **Subnet DI SETTING DI SISI SERVER (DI LUAR WIREGUARD)**
+
+### 1️⃣ Subnet didefinisikan di **BACKEND (logic)**
+
+Contoh:
+
+```text
+Customer A → 10.100.10.0/24
+Customer B → 10.100.20.0/24
+```
+
+Backend memastikan:
+
+* IP device A **selalu** di `10.100.10.0/24`
+* IP device B **selalu** di `10.100.20.0/24`
+
+---
+
+### 2️⃣ Subnet ditegakkan di **FIREWALL SERVER**
+
+```bash
+# DROP default
+iptables -P FORWARD DROP
+
+# Allow WireGuard
+iptables -A FORWARD -i wg0 -j ACCEPT
+iptables -A FORWARD -o wg0 -j ACCEPT
+
+# Subnet customer A
+iptables -A FORWARD -s 10.100.10.0/24 -j ACCEPT
+
+# Block antar customer
+iptables -A FORWARD -s 10.100.10.0/24 -d 10.100.20.0/24 -j DROP
+iptables -A FORWARD -s 10.100.20.0/24 -d 10.100.10.0/24 -j DROP
+```
+
+➡️ **DI SINILAH subnet “hidup” secara nyata**
+
+---
+
+## 🧠 CHEAT SHEET (1 LAYAR)
+
+| Item                | Di mana            | Fungsi           |
+| ------------------- | ------------------ | ---------------- |
+| AllowedIPs (client) | Client             | Routing lokal    |
+| AllowedIPs (server) | Server             | Auth + ACL       |
+| Peer server         | Server             | 1 device = 1 key |
+| Peer client         | Client             | Server tujuan    |
+| Subnet customer     | Backend + Firewall | Group & isolasi  |
+
+---
+
+## 🧠 1 KALIMAT FINAL (INGAT INI)
+
+> **WireGuard hanya mengamankan koneksi per device; subnet dan isolasi customer sepenuhnya ditentukan oleh backend dan firewall di sisi server.**
+
+---
+
+Kalau mau, aku bisa lanjutkan dengan:
+
+* **diagram ASCII final**
+* **checklist implementasi NexWage VPN**
+* **agent-only zero-trust flow**
+
+Tinggal bilang mau lanjut yang mana.
+
