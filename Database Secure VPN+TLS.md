@@ -72,7 +72,7 @@
           -c ssl_key_file=/certs/server.key
           -c ssl_ca_file=/certs/ca.crt
           -c listen_addresses='*'
-          -c port=${PG_PORT}
+          -c port=5432
   
       # 🔒 BIND hanya ke IP wg0 (VPN)
       ports:
